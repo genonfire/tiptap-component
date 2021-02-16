@@ -8,9 +8,9 @@ Vue.js component for TipTap
 # How to
 
     Copy assets/images/icons, assets/sass and src/components/TipTap.vue to your repository
-    Code yours like src/components/SampleEditor.vue
+    Code your eidtor view like src/components/SampleEditor.vue
 
 
 # Demo
 
-https://genonfire.github.com/tiptap-component/ (TBD)
+https://genonfire.github.io/tiptap-component/
