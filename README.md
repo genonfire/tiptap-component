@@ -16,7 +16,7 @@ tiptap and tiptap-extensions required (if not installed)
     Copy assets/images/icons, assets/sass and src/components/TipTap.vue to your repository
 
 
-# Example
+# Usage
 Please refer src/components/SampleEditor.vue
 ```vue
 <template>
