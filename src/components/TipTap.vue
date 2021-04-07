@@ -94,7 +94,6 @@
           class="menubar__button"
           :class="{ 'is-disabled': shouldDisableButton(isActive.link()), 'is-active': isActive.link() }"
           @click.prevent="isActive.link() ? changeLinkDialog(commands.link, getMarkAttrs('link')) : addLinkDialog(commands.link, getMarkAttrs('link'))"
-          title="test"
         >
           <img class="icon" src="@/assets/images/icons/link.svg" />
         </button>
