@@ -23,7 +23,9 @@ export default {
     return {
       options: {
         content: '<blockquote><p>Testing...</p></blockquote><ul><li><p><b>bold</b></p></li><li><p><i>italic</i></p></li><li><p><u>underline</u></p></li></ul>',
-        editable: true
+        editable: true,
+        supportImage: true,
+        supportVideo: true
       }
     }
   }

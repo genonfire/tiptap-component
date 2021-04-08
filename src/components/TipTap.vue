@@ -1,7 +1,11 @@
 <template>
   <div class="editor">
 
-    <editor-menu-bar :editor="editor" v-slot="{ commands, isActive, getMarkAttrs }">
+    <editor-menu-bar
+      :editor="editor"
+      v-slot="{ commands, isActive, getMarkAttrs }"
+      v-if="!options.readonly"
+    >
       <div class="menubar">
 
         <button
@@ -97,6 +101,143 @@
         >
           <img class="icon" src="@/assets/images/icons/link.svg" />
         </button>
+
+        <v-dialog
+          v-model="imageDialog"
+          max-width="540"
+        >
+          <template v-slot:activator="{ on, attrs }">
+            <button
+              class="menubar__button"
+              :class="options.supportImage ? '' : 'is-disabled'"
+              v-bind="attrs"
+              v-on="options.supportImage ? on : null"
+            >
+              <img class="icon" src="@/assets/images/icons/image.svg" />
+            </button>
+          </template>
+          <v-card
+            class="pa-1"
+          >
+
+            <v-tabs
+              v-model="imageTab"
+              grow
+              text
+            >
+              <v-tab href="#imageTab-link">
+                Image link
+              </v-tab>
+              <v-tab href="#imageTab-upload">
+                Image upload
+              </v-tab>
+            </v-tabs>
+
+            <v-tabs-items
+              v-model="imageTab"
+            >
+              <v-tab-item
+                key="1"
+                value="imageTab-link"
+              >
+                <v-card-text
+                  class="mt-5"
+                >
+                  <v-text-field
+                    v-model="fileURL"
+                    single-line
+                    label="Paste link here"
+                    prepend-icon="mdi-web"
+                  >
+                  </v-text-field>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    dark
+                    @click="insertImage(commands.image)"
+                  >
+                    Insert image
+                  </v-btn>
+                </v-card-actions>
+              </v-tab-item>
+
+              <v-tab-item
+                key="2"
+                value="imageTab-upload"
+              >
+                <v-card-text
+                  class="mt-5"
+                >
+                  <v-file-input
+                    v-model="selectedFile"
+                    accept="image/*"
+                    prepend-icon="mdi-folder-open-outline"
+                    show-size
+                    placeholder="Select a file"
+                    @change="onFileChange"
+                  >
+                  </v-file-input>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    dark
+                    @click="insertImage(commands.image)"
+                  >
+                    Insert image
+                  </v-btn>
+                </v-card-actions>
+              </v-tab-item>
+            </v-tabs-items>
+
+          </v-card>
+        </v-dialog>
+
+        <v-dialog
+          v-model="videoDialog"
+          max-width="540"
+        >
+          <template v-slot:activator="{ on, attrs }">
+            <button
+              class="menubar__button"
+              :class="options.supportVideo ? '' : 'is-disabled'"
+              v-bind="attrs"
+              v-on="options.supportVideo ? on : null"
+            >
+              <img class="icon" src="@/assets/images/icons/youtube.svg" />
+            </button>
+          </template>
+          <v-card
+            class="pa-1"
+          >
+            <v-card-title
+            >
+              Insert video
+            </v-card-title>
+            <v-divider></v-divider>
+            <v-card-text
+              class="mt-2"
+            >
+              <v-text-field
+                v-model="videoURL"
+                single-line
+                label="Paste link here"
+                prepend-icon="mdi-youtube"
+              >
+              </v-text-field>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn
+                dark
+                @click="insertVideo()"
+              >
+                Insert video
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
 
         <button
           class="menubar__button"
@@ -199,6 +340,7 @@
 </template>
 
 <script>
+import { DOMParser } from 'prosemirror-model'
 import {
   Editor,
   EditorContent,
@@ -218,6 +360,7 @@ import {
   Bold,
   Italic,
   Link,
+  Image,
   Strike,
   Underline,
   Code,
@@ -225,8 +368,11 @@ import {
   TableHeader,
   TableCell,
   TableRow,
-  History
+  History,
+  TrailingNode,
 } from "tiptap-extensions";
+import Iframe from '@/components/Iframe.js'
+import axios from 'axios'
 
 export default {
   components: {
@@ -235,17 +381,26 @@ export default {
   },
   props: {
     options: Object
-    // content: initial text
-    // editable: read only if false
+    // content: initial and updated text
+    // readonly: read only if true
+    // autoFocus: Focus the editor on init
+    // supportImage: upload and link images
+    // supportVideo: embed video
   },
   data () {
     return {
-      editor: null
+      editor: null,
+      imageDialog: false,
+      videoDialog: false,
+      imageTab: null,
+      fileURL: null,
+      videoURL: null,
+      selectedFile: null,
     }
   },
   mounted () {
     this.editor = new Editor ({
-      editable: this.options.editable,
+      editable: !this.options.readonly,
       extensions: [
         new Blockquote(),
         new CodeBlock(),
@@ -263,6 +418,7 @@ export default {
           openOnClick: true,
           target: '_blank',
         }),
+        new Image(),
         new Strike(),
         new Underline(),
         new Code(),
@@ -272,12 +428,15 @@ export default {
         new TableHeader(),
         new TableCell(),
         new TableRow(),
-        new History()
+        new History(),
+        new TrailingNode(),
+        new Iframe()
       ],
       onUpdate: ({ getHTML }) => {
         this.options.content = getHTML()
       },
       content: this.options.content,
+      autoFocus: this.options.autoFocus,
     })
   },
   beforeDestroy () {
@@ -305,9 +464,68 @@ export default {
         }
         command({ href: res })
       }
+    },
+    insertHTML: function ({ state, view }, value) {
+      const { selection } = state
+      const element = document.createElement('div')
+      element.innerHTML = value.trim()
+      const slice = DOMParser.fromSchema(state.schema).parseSlice(element)
+      const transaction = state.tr.insert(selection.anchor, slice.content)
+      view.dispatch(transaction)
+    },
+    insertVideo: function () {
+      let vm = this
+      let src = this.videoURL
+
+      if (src.includes('youtube.com/') || src.includes('youtu.be/')) {
+        axios({
+          method: 'get',
+          url: 'https://www.youtube.com/oembed?url={url}&format=json&maxwidth=640&maxheight=360'.replace('{url}', src),
+        })
+        .then(function (response) {
+          const src = response.data['html']
+          vm.insertHTML(vm.editor, src)
+
+          vm.videoURL = null
+          vm.videoDialog = false
+        })
+      }
+      else {
+        let embed = '<iframe src={src}></iframe>'.replace('{src}', src)
+        this.editor.setContent(embed)
+        this.videoURL = null
+        this.videoDialog = false
+      }
+    },
+    insertImage: function (command) {
+      const src = this.fileURL
+      command({ src })
+
+      this.selectedFile = null
+      this.fileURL = null
+      this.imageDialog = false
+    },
+    onFileChange: function () {
+      if (this.selectedFile) {
+        this.uploadFile(this.selectedFile)
+      }
+    },
+    uploadFile: function (file) {
+      let formData = new FormData();
+      formData.append('file', file)
+
+      // File upload API required
+      // axios({
+      //   method: this.$api('FILE_UPLOAD').method,
+      //   url: this.$api('FILE_UPLOAD').url,
+      //   data: formData,
+      // })
+      // .then(function (response) {
+      //   vm.fileURL = response.data['data']['file']
+      // })
     }
   }
-};
+}
 </script>
 
 <style lang="scss">
