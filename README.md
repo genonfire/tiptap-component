@@ -1,5 +1,7 @@
 # tiptap-component
-Vue.js component for TipTap (Based on tiptap.dev examples)
+Vue.js 2 component for TipTap (Based on tiptap.dev examples)
+
+Vue.js 3 https://github.com/genonfire/bbgo-ui/blob/master/src/components/Tiptap.vue
 
 
 ![screenshot](./sample.png?raw=true "screenshot")
